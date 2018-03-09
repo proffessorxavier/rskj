@@ -18,11 +18,22 @@
 
 package co.rsk.trie;
 
+import co.rsk.blockchain.utils.BlockGenerator;
+import co.rsk.core.Coin;
+import co.rsk.core.bc.BlockExecutor;
 import co.rsk.crypto.Keccak256;
+import co.rsk.db.RepositoryImpl;
+import co.rsk.test.World;
+import co.rsk.test.builders.AccountBuilder;
+import org.ethereum.core.*;
 import org.ethereum.datasource.HashMapDB;
+import org.ethereum.util.TransactionFactoryHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -111,6 +122,59 @@ public class TrieCopierTest {
         Assert.assertNull(result1.get((nvalues - 1) + ""));
         Assert.assertNull(result2.get((nvalues - 1) + ""));
         Assert.assertArrayEquals(trie.get((nvalues - 1) + ""), result3.get((nvalues - 1) + ""));
+    }
+
+    @Test
+    public void copyBlockchainTwoHeights() {
+        TrieStore store = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
+        TrieStore store2 = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
+        Repository repository = new RepositoryImpl(null, store);
+        World world = new World(repository);
+
+        Blockchain blockchain = createBlockchain(world);
+
+        addBlocks(world, blockchain, 10);
+
+        byte[] state8 = blockchain.getBlockByNumber(8).getStateRoot();
+        byte[] state9 = blockchain.getBlockByNumber(9).getStateRoot();
+
+        TrieCopier.trieCopy(store, store2, blockchain, 9);
+
+        Repository repository91 = repository.getSnapshotTo(state9);
+        Repository repository92 = new RepositoryImpl(null, store2).getSnapshotTo(state9);
+
+        Assert.assertNotNull(repository91);
+        Assert.assertNotNull(repository92);
+
+        Account account1 = new AccountBuilder().name("account1").balance(new Coin(BigInteger.valueOf(10000000))).build();
+        Assert.assertEquals(repository91.getBalance(account1.getAddress()), repository92.getBalance(account1.getAddress()));
+
+        Repository repository81 = repository.getSnapshotTo(state8);
+
+        Assert.assertNotNull(repository81);
+        Assert.assertNull(store2.retrieve(state8));
+    }
+
+    private static Blockchain createBlockchain(World world) {
+        Account account1 = new AccountBuilder(world).name("account1").balance(new Coin(BigInteger.valueOf(10000000))).build();
+        Account account2 = new AccountBuilder(world).name("account2").balance(new Coin(BigInteger.valueOf(10000000))).build();
+
+        return world.getBlockChain();
+    }
+
+    private static void addBlocks(World world, Blockchain blockchain, int nblocks) {
+        for (int k = 0; k < nblocks; k++) {
+            Transaction tx = TransactionFactoryHelper.createSampleTransaction(1, 2, 100, k);
+            List<Transaction> txs = new ArrayList<>();
+            txs.add(tx);
+
+            Block block = new BlockGenerator().createChildBlock(blockchain.getBestBlock(), txs);
+            BlockExecutor blockExecutor = world.getBlockExecutor();
+            blockExecutor.executeAndFillAll(block, blockchain.getBestBlock());
+
+            Assert.assertEquals(ImportResult.IMPORTED_BEST, blockchain.tryToConnect(block));
+            Assert.assertEquals(block.getHash(), blockchain.getBestBlock().getHash());
+        }
     }
 
     private byte[][] createValues(int nvalues, int length) {

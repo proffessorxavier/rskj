@@ -72,6 +72,11 @@ public class BlockChainBuilder {
         return this;
     }
 
+    public BlockChainBuilder setRepository(Repository repository) {
+        this.repository = repository;
+        return this;
+    }
+
     public BlockChainBuilder setBlockStore(BlockStore blockStore) {
         this.blockStore = blockStore;
         return this;
