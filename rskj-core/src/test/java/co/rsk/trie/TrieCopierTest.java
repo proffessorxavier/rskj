@@ -28,6 +28,7 @@ import co.rsk.test.builders.AccountBuilder;
 import org.ethereum.core.*;
 import org.ethereum.datasource.HashMapDB;
 import org.ethereum.util.TransactionFactoryHelper;
+import org.ethereum.vm.PrecompiledContracts;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -59,7 +60,7 @@ public class TrieCopierTest {
 
         trie.save();
 
-        TrieCopier.trieCopy(store1, store2, trie.getHash());
+        TrieCopier.trieStateCopy(store1, store2, trie.getHash());
 
         Trie result = store2.retrieve(trie.getHash().getBytes());
 
@@ -96,9 +97,9 @@ public class TrieCopierTest {
         trie.save();
         Keccak256 hash3 = trie.getHash();
 
-        TrieCopier.trieCopy(store1, store2, hash1);
-        TrieCopier.trieCopy(store1, store2, hash2);
-        TrieCopier.trieCopy(store1, store2, hash3);
+        TrieCopier.trieStateCopy(store1, store2, hash1);
+        TrieCopier.trieStateCopy(store1, store2, hash2);
+        TrieCopier.trieStateCopy(store1, store2, hash3);
 
         Trie result1 = store2.retrieve(hash1.getBytes());
 
@@ -125,7 +126,7 @@ public class TrieCopierTest {
     }
 
     @Test
-    public void copyBlockchainTwoHeights() {
+    public void copyBlockchainHeightTwoStates() {
         TrieStore store = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
         TrieStore store2 = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
         Repository repository = new RepositoryImpl(null, store);
@@ -138,7 +139,7 @@ public class TrieCopierTest {
         byte[] state8 = blockchain.getBlockByNumber(8).getStateRoot();
         byte[] state9 = blockchain.getBlockByNumber(9).getStateRoot();
 
-        TrieCopier.trieCopy(store, store2, blockchain, 9);
+        TrieCopier.trieStateCopy(store, store2, blockchain, 9);
 
         Repository repository91 = repository.getSnapshotTo(state9);
         Repository repository92 = new RepositoryImpl(null, store2).getSnapshotTo(state9);
@@ -155,9 +156,29 @@ public class TrieCopierTest {
         Assert.assertNull(store2.retrieve(state8));
     }
 
+    @Test
+    public void copyBlockchainHeightTwoContractStates() {
+        TrieStore store = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
+        TrieStore store2 = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
+        Repository repository = new RepositoryImpl(null, store);
+        World world = new World(repository);
+
+        Blockchain blockchain = createBlockchain(world);
+
+        addBlocks(world, blockchain, 10);
+
+        byte[] state8 = blockchain.getBlockByNumber(8).getStateRoot();
+        byte[] state9 = blockchain.getBlockByNumber(9).getStateRoot();
+
+        TrieCopier.trieContractStateCopy(store, store2, blockchain, 9, world.getRepository(), PrecompiledContracts.REMASC_ADDR);
+
+        Repository repository91 = repository.getSnapshotTo(state9);
+    }
+
     private static Blockchain createBlockchain(World world) {
-        Account account1 = new AccountBuilder(world).name("account1").balance(new Coin(BigInteger.valueOf(10000000))).build();
-        Account account2 = new AccountBuilder(world).name("account2").balance(new Coin(BigInteger.valueOf(10000000))).build();
+        // add accounts with balance to genesis state
+        new AccountBuilder(world).name("account1").balance(new Coin(BigInteger.valueOf(10000000))).build();
+        new AccountBuilder(world).name("account2").balance(new Coin(BigInteger.valueOf(10000000))).build();
 
         return world.getBlockChain();
     }

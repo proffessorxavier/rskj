@@ -18,9 +18,13 @@
 
 package co.rsk.trie;
 
+import co.rsk.core.RskAddress;
 import co.rsk.crypto.Keccak256;
+import org.ethereum.core.AccountState;
 import org.ethereum.core.Block;
 import org.ethereum.core.Blockchain;
+import org.ethereum.core.Repository;
+import org.ethereum.db.ContractDetails;
 
 import java.util.List;
 
@@ -28,20 +32,37 @@ import java.util.List;
  * Created by ajlopez on 09/03/2018.
  */
 public class TrieCopier {
-    public static void trieCopy(TrieStore source, TrieStore target, Keccak256 hash)
+    public static void trieStateCopy(TrieStore source, TrieStore target, Keccak256 hash)
     {
         Trie trie = source.retrieve(hash.getBytes());
         trie.copyTo(target);
     }
 
-    public static void trieCopy(TrieStore source, TrieStore target, Blockchain blockchain, int initialHeight) {
+    public static void trieStateCopy(TrieStore source, TrieStore target, Blockchain blockchain, int initialHeight) {
         long h = initialHeight;
 
         List<Block> blocks = blockchain.getBlocksByNumber(h);
 
         while (!blocks.isEmpty()) {
             for (Block block : blocks) {
-                trieCopy(source, target, new Keccak256(block.getStateRoot()));
+                trieStateCopy(source, target, new Keccak256(block.getStateRoot()));
+            }
+
+            h++;
+            blocks = blockchain.getBlocksByNumber(h);
+        }
+    }
+
+    public static void trieContractStateCopy(TrieStore source, TrieStore target, Blockchain blockchain, int initialHeight, Repository repository, RskAddress contractAddress) {
+        long h = initialHeight;
+
+        List<Block> blocks = blockchain.getBlocksByNumber(h);
+
+        while (!blocks.isEmpty()) {
+            for (Block block : blocks) {
+                Repository stateRepository = repository.getSnapshotTo(block.getStateRoot());
+                AccountState accountState = stateRepository.getAccountState(contractAddress);
+                trieStateCopy(source, target, new Keccak256(accountState.getStateRoot()));
             }
 
             h++;
