@@ -19,10 +19,12 @@
 package co.rsk.trie;
 
 import co.rsk.blockchain.utils.BlockGenerator;
+import co.rsk.config.RskSystemProperties;
 import co.rsk.core.Coin;
 import co.rsk.core.bc.BlockExecutor;
 import co.rsk.crypto.Keccak256;
 import co.rsk.db.RepositoryImpl;
+import co.rsk.remasc.RemascTransaction;
 import co.rsk.test.World;
 import co.rsk.test.builders.AccountBuilder;
 import org.ethereum.core.*;
@@ -31,6 +33,7 @@ import org.ethereum.util.TransactionFactoryHelper;
 import org.ethereum.vm.PrecompiledContracts;
 import org.junit.Assert;
 import org.junit.Test;
+import org.spongycastle.pqc.math.linearalgebra.ByteUtils;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -42,6 +45,7 @@ import java.util.Random;
  */
 public class TrieCopierTest {
     private static Random random = new Random();
+    private final RskSystemProperties config = new RskSystemProperties();
 
     @Test
     public void copyTrie() {
@@ -129,7 +133,7 @@ public class TrieCopierTest {
     public void copyBlockchainHeightTwoStates() {
         TrieStore store = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
         TrieStore store2 = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
-        Repository repository = new RepositoryImpl(null, store);
+        Repository repository = new RepositoryImpl(config, store);
         World world = new World(repository);
 
         Blockchain blockchain = createBlockchain(world);
@@ -142,7 +146,7 @@ public class TrieCopierTest {
         TrieCopier.trieStateCopy(store, store2, blockchain, 9);
 
         Repository repository91 = repository.getSnapshotTo(state9);
-        Repository repository92 = new RepositoryImpl(null, store2).getSnapshotTo(state9);
+        Repository repository92 = new RepositoryImpl(config, store2).getSnapshotTo(state9);
 
         Assert.assertNotNull(repository91);
         Assert.assertNotNull(repository92);
@@ -160,19 +164,27 @@ public class TrieCopierTest {
     public void copyBlockchainHeightTwoContractStates() {
         TrieStore store = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
         TrieStore store2 = new TrieStoreImpl(new HashMapDB().setClearOnClose(false));
-        Repository repository = new RepositoryImpl(null, store);
+        Repository repository = new RepositoryImpl(config, store);
         World world = new World(repository);
 
         Blockchain blockchain = createBlockchain(world);
 
-        addBlocks(world, blockchain, 10);
+        addBlocks(world, blockchain, 100);
 
-        byte[] state8 = blockchain.getBlockByNumber(8).getStateRoot();
-        byte[] state9 = blockchain.getBlockByNumber(9).getStateRoot();
+        byte[] state8 = blockchain.getBlockByNumber(98).getStateRoot();
+        byte[] state9 = blockchain.getBlockByNumber(99).getStateRoot();
 
-        TrieCopier.trieContractStateCopy(store, store2, blockchain, 9, world.getRepository(), PrecompiledContracts.REMASC_ADDR);
+        TrieCopier.trieContractStateCopy(store, store2, blockchain, 99, world.getRepository(), PrecompiledContracts.REMASC_ADDR);
 
         Repository repository91 = repository.getSnapshotTo(state9);
+        AccountState accountState9 = repository91.getAccountState(PrecompiledContracts.REMASC_ADDR);
+        Assert.assertNotNull(store2.retrieve(accountState9.getStateRoot()));
+
+        Repository repository81 = repository.getSnapshotTo(state8);
+        AccountState accountState8 = repository81.getAccountState(PrecompiledContracts.REMASC_ADDR);
+
+//        Assert.assertFalse(ByteUtils.equals(accountState8.getStateRoot(), accountState9.getStateRoot()));
+//        Assert.assertNull(store2.retrieve(accountState8.getStateRoot()));
     }
 
     private static Blockchain createBlockchain(World world) {
@@ -186,8 +198,10 @@ public class TrieCopierTest {
     private static void addBlocks(World world, Blockchain blockchain, int nblocks) {
         for (int k = 0; k < nblocks; k++) {
             Transaction tx = TransactionFactoryHelper.createSampleTransaction(1, 2, 100, k);
+            Transaction rtx = new RemascTransaction(blockchain.getBestBlock().getNumber() + 1);
             List<Transaction> txs = new ArrayList<>();
             txs.add(tx);
+            txs.add(rtx);
 
             Block block = new BlockGenerator().createChildBlock(blockchain.getBestBlock(), txs);
             BlockExecutor blockExecutor = world.getBlockExecutor();
