@@ -347,8 +347,6 @@ public class RskForksBridgeTest {
 
         executor.init();
         executor.execute();
-        executor.go();
-        executor.finalization();
 
         ProgramResult res = executor.getResult();
 
