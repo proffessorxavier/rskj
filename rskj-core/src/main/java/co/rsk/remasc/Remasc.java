@@ -138,7 +138,6 @@ public class Remasc {
         // because it supports the update of bytes (notably, RepositoryImpl don't)
         // the update of bytes is needed, because BridgeSupport creation could alter
         // the storage when getChainHead is null (specially in production)
-        processingRepository = processingRepository.startTracking();
         BridgeSupport bridgeSupport = new BridgeSupport(
                 config,
                 processingRepository,
