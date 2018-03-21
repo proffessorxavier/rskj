@@ -20,6 +20,7 @@ package co.rsk.trie;
 
 import co.rsk.core.RskAddress;
 import co.rsk.crypto.Keccak256;
+import co.rsk.db.ContractDetailsImpl;
 import org.ethereum.core.AccountState;
 import org.ethereum.core.Block;
 import org.ethereum.core.Blockchain;
@@ -62,7 +63,10 @@ public class TrieCopier {
             for (Block block : blocks) {
                 Repository stateRepository = repository.getSnapshotTo(block.getStateRoot());
                 AccountState accountState = stateRepository.getAccountState(contractAddress);
-                trieStateCopy(source, target, new Keccak256(accountState.getStateRoot()));
+
+                ContractDetailsImpl contractDetails = (ContractDetailsImpl)stateRepository.getContractDetails(contractAddress);
+                TrieImpl trie = (TrieImpl)contractDetails.getTrie();
+                trieStateCopy(trie.getStore(), target, new Keccak256(accountState.getStateRoot()));
             }
 
             h++;

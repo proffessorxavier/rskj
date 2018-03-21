@@ -171,20 +171,14 @@ public class TrieCopierTest {
 
         addBlocks(world, blockchain, 100);
 
-        byte[] state8 = blockchain.getBlockByNumber(98).getStateRoot();
-        byte[] state9 = blockchain.getBlockByNumber(99).getStateRoot();
+        byte[] state98 = blockchain.getBlockByNumber(98).getStateRoot();
+        byte[] state99 = blockchain.getBlockByNumber(99).getStateRoot();
 
         TrieCopier.trieContractStateCopy(store, store2, blockchain, 99, world.getRepository(), PrecompiledContracts.REMASC_ADDR);
 
-        Repository repository91 = repository.getSnapshotTo(state9);
-        AccountState accountState9 = repository91.getAccountState(PrecompiledContracts.REMASC_ADDR);
-        Assert.assertNotNull(store2.retrieve(accountState9.getStateRoot()));
-
-        Repository repository81 = repository.getSnapshotTo(state8);
-        AccountState accountState8 = repository81.getAccountState(PrecompiledContracts.REMASC_ADDR);
-
-//        Assert.assertFalse(ByteUtils.equals(accountState8.getStateRoot(), accountState9.getStateRoot()));
-//        Assert.assertNull(store2.retrieve(accountState8.getStateRoot()));
+        Repository repository99 = repository.getSnapshotTo(state99);
+        AccountState accountState99 = repository99.getAccountState(PrecompiledContracts.REMASC_ADDR);
+        Assert.assertNotNull(store2.retrieve(accountState99.getStateRoot()));
     }
 
     private static Blockchain createBlockchain(World world) {
