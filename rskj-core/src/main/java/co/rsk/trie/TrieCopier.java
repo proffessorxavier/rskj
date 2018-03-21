@@ -54,7 +54,7 @@ public class TrieCopier {
         }
     }
 
-    public static void trieContractStateCopy(TrieStore source, TrieStore target, Blockchain blockchain, int initialHeight, Repository repository, RskAddress contractAddress) {
+    public static void trieContractStateCopy(TrieStore source, TrieStore target, Blockchain blockchain, long initialHeight, Repository repository, RskAddress contractAddress) {
         long h = initialHeight;
 
         List<Block> blocks = blockchain.getBlocksByNumber(h);
