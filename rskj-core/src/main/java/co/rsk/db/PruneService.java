@@ -19,6 +19,7 @@
 package co.rsk.db;
 
 import co.rsk.config.RskSystemProperties;
+import co.rsk.core.Rsk;
 import co.rsk.core.RskAddress;
 import co.rsk.trie.TrieCopier;
 import co.rsk.trie.TrieImpl;
@@ -26,6 +27,7 @@ import co.rsk.trie.TrieStore;
 import co.rsk.trie.TrieStoreImpl;
 import org.ethereum.core.Blockchain;
 import org.ethereum.datasource.KeyValueDataSource;
+import org.ethereum.util.FileUtil;
 
 import static org.ethereum.datasource.DataSourcePool.levelDbByName;
 
@@ -50,16 +52,31 @@ public class PruneService {
     public void process() {
         long from = this.blockchain.getBestBlock().getNumber() - noBlocks;
         String dataSourceName = getDataSourceName(contractAddress);
-        TrieStore sourceStore = new TrieStoreImpl(levelDbByName(this.config, dataSourceName));
+        KeyValueDataSource sourceDataSource = levelDbByName(this.config, dataSourceName);
+        TrieStore sourceStore = new TrieStoreImpl(sourceDataSource);
         KeyValueDataSource targetDataSource = levelDbByName(this.config, dataSourceName + "B");
         TrieStore targetStore = new TrieStoreImpl(targetDataSource);
 
-        trieCopier.trieContractStateCopy(sourceStore, targetStore, blockchain, from, blockchain.getRepository(), this.contractAddress);
+        trieCopier.trieContractStateCopy(sourceStore, targetStore, blockchain, from, 0, blockchain.getRepository(), this.contractAddress);
 
         targetDataSource.close();
+        sourceDataSource.close();
+
+        String contractDirectoryName = getDatabaseDirectory(config, dataSourceName);
+
+        removeDirectory(contractDirectoryName);
+        boolean result = FileUtil.fileRename(contractDirectoryName + "B", contractDirectoryName);
+    }
+
+    private static String getDatabaseDirectory(RskSystemProperties config, String subdirectoryName) {
+        return FileUtil.getDatabaseDirectoryPath(config.databaseDir(), subdirectoryName).toString();
     }
 
     private static String getDataSourceName(RskAddress contractAddress) {
         return "details-storage/" + contractAddress;
+    }
+
+    private static void removeDirectory(String directoryName) {
+        FileUtil.recursiveDelete(directoryName);
     }
 }
